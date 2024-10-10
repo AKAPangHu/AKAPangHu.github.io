@@ -10,9 +10,9 @@
         let theme = localStorage.getItem("meek_theme") || "light";
         document.documentElement.setAttribute("data-color-mode", theme);
     </script>
-<meta name="description" content="我们都知道，-Xms, -Xmx是控制JVM的参数，如果堆内存设置的比服务器的实际内存更大，那么服务还可以正常启动吗？答案其实是可以。">
+<meta name="description" content="我们都知道，-Xms, -Xmx是控制JVM的参数，**如果堆内存设置的比服务器的实际内存更大，那么服务还可以正常启动吗？**答案其实是可以。">
 <meta property="og:title" content="记录一次JVM参数引发的线上故障">
-<meta property="og:description" content="我们都知道，-Xms, -Xmx是控制JVM的参数，如果堆内存设置的比服务器的实际内存更大，那么服务还可以正常启动吗？答案其实是可以。">
+<meta property="og:description" content="我们都知道，-Xms, -Xmx是控制JVM的参数，**如果堆内存设置的比服务器的实际内存更大，那么服务还可以正常启动吗？**答案其实是可以。">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://AKAPangHu.github.io/post/ji-lu-yi-ci-JVM-can-shu-yin-fa-de-xian-shang-gu-zhang.html">
 <meta property="og:image" content="https://github.githubassets.com/favicons/favicon.svg">
@@ -73,22 +73,23 @@ body{box-sizing: border-box;min-width: 200px;max-width: 900px;margin: 20px auto;
 </div>
 </div>
     <div id="content">
-<div class="markdown-body" id="postBody"><p>我们都知道，-Xms, -Xmx是控制JVM的参数，如果堆内存设置的比服务器的实际内存更大，那么服务还可以正常启动吗？答案其实是可以。</p>
-<p>环境：JDK8u141，使用CMS垃圾回收器。（<strong>不要问为什么不用新的</strong>）</p>
+<div class="markdown-body" id="postBody"><p>我们都知道，-Xms, -Xmx是控制JVM的参数，**如果堆内存设置的比服务器的实际内存更大，那么服务还可以正常启动吗？**答案其实是可以。</p>
+<p><em>环境：JDK8u141，使用CMS垃圾回收器。（<strong>不要问为什么不用新的</strong>）</em></p>
 <h1>故障出现</h1>
-<p>最近线上出现了这样一个故障，由于业务前线没有通知到我们，所以服务流量上涨了很多，这个时候我突然发现，内存在不断上涨，从67%一路上升，一直到85%，已经触发了我们的警报。</p>
+<p>最近线上出现了这样一个故障，由于业务前线没有通知到我们，所以服务流量上涨了很多。这个时候我突然发现，内存在不断上涨，从67%一路上升，一直到85%，已经触发了我们的警报。</p>
 <h1>初步解决</h1>
 <p>我们认为直接扩容可能就没问题了，所以扩充了三倍的容器数量，这个时候明显感觉到服务器已经下降了。</p>
-<p>让我们看下最高的那条红色的线，可以观察但是内存占用依然在不断上升，甚至没有下降的趋势。在这个时候我们觉得内存有<strong>内存泄漏</strong>，正常的JVM都应当是占用内存空间有一个波动，有时高有时低才对。但是这样的观念值得起推敲吗？<br>
-<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/48c0cadb-3bf9-42c3-b16d-b09b9783df91"><img src="https://github.com/user-attachments/assets/48c0cadb-3bf9-42c3-b16d-b09b9783df91" alt="image" style="max-width: 100%;"></a></p>
+<p>让我们看下最高的那条红色的线，可以观察但是内存占用依然在不断上升，甚至没有下降的趋势，并且95%的内存占用一直持续了8个小时。在这个时候我们觉得内存有<strong>内存泄漏</strong>，正常的JVM都应当是占用内存空间有一个波动，有时高有时低才对，至少也应该在过了一夜之后下降。但是这样的观念值得起推敲吗？</p>
+<p><a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/48c0cadb-3bf9-42c3-b16d-b09b9783df91"><img src="https://github.com/user-attachments/assets/48c0cadb-3bf9-42c3-b16d-b09b9783df91" alt="image" style="max-width: 100%;"></a></p>
 <h1>发现疑问</h1>
-<p>GC日志ge给出了JVM里面所有对象的信息。可以发现，其实对象是经常变化的，FULL GC之后，对象是经历正常回收的。我们都知道内存泄漏就是某些对象超出了被正常回收的范围。在这里看起来显然不是。<br>
-<a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/7a45f058-9ef8-4a50-9601-4aca94f76650"><img src="https://github.com/user-attachments/assets/7a45f058-9ef8-4a50-9601-4aca94f76650" alt="image" style="max-width: 100%;"></a></p>
+<p>GC日志给出了JVM里面所有对象的信息。可以发现，其实对象是经常变化的，FULL GC之后，对象是经历正常回收的。我们都知道内存泄漏就是某些对象超出了被正常回收的范围。在这里看起来显然不是。</p>
+<p><a target="_blank" rel="noopener noreferrer" href="https://github.com/user-attachments/assets/6a16a642-ec6e-4852-bf4a-5ddf75ed530b"><img src="https://github.com/user-attachments/assets/6a16a642-ec6e-4852-bf4a-5ddf75ed530b" alt="image" style="max-width: 100%;"></a></p>
 <p>这个时候我突然发现，JVM参数是-Xms=4g, -Xmx=8g。而我们的服务器总共才有2g。这时可以明显看出有问题了，但是，<strong>问题在哪</strong>？</p>
-<p>#深入探明真相<br>
-待更新(遗留问题)<br>
-1、为什么虚拟内存VSZ占用比较高，有19G？<br>
-2、为什么JVM初始创建时，没有达到Xms预期的实际占用内存量(4G)？</p></div>
+<h1>深入探明真相</h1>
+<p>待更新(遗留问题)<br>
+1、为什么支持超内存提交？怎么查看？<br>
+2、为什么虚拟内存VSZ占用比较高，有19G？<br>
+3、为什么JVM初始创建时，没有达到Xms预期的实际占用内存量(4G)？</p></div>
 <div style="font-size:small;margin-top:8px;float:right;"></div>
 
 <button class="btn btn-block" type="button" onclick="openComments()" id="cmButton">评论</button>
